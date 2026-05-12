@@ -24,6 +24,17 @@ export const authRateLimiter = rateLimit({
   },
 });
 
+/** Strict limiter for AI endpoints (Gemini API costs money) */
+export const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    sendError(res, 'AI rate limit exceeded — please wait before sending more requests.', 429);
+  },
+});
+
 /** Strict limiter for OTP endpoints */
 export const otpRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
