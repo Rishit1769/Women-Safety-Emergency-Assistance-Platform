@@ -29,7 +29,7 @@ export interface SosRealtimeState {
  * @param alertId - The alert ID to subscribe to (or null to skip)
  */
 export function useSosRealtime(alertId: string | null): SosRealtimeState {
-  const { tokens } = useAuthStore();
+  const { accessToken } = useAuthStore();
 
   const [state, setState] = useState<SosRealtimeState>({
     status: null,
@@ -71,7 +71,7 @@ export function useSosRealtime(alertId: string | null): SosRealtimeState {
   useEffect(() => {
     if (!alertId) return;
 
-    const socket = getSocket(tokens?.accessToken);
+    const socket = getSocket(accessToken ?? undefined);
 
     // Join the alert's realtime room
     socket.emit('JOIN_ALERT_ROOM', alertId);
@@ -88,7 +88,7 @@ export function useSosRealtime(alertId: string | null): SosRealtimeState {
       socket.off('VOLUNTEER_ACCEPTED', handleVolunteerAccepted);
       socket.off('ALERT_RESOLVED', handleResolved);
     };
-  }, [alertId, tokens?.accessToken, handleStatusChange, handleLocationUpdate, handleVolunteerAccepted, handleResolved]);
+  }, [alertId, accessToken, handleStatusChange, handleLocationUpdate, handleVolunteerAccepted, handleResolved]);
 
   return state;
 }

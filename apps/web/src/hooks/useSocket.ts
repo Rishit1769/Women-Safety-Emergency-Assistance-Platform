@@ -14,18 +14,18 @@ import { useAuthStore } from '@/store/auth.store';
  * Place this hook once at the root layout or providers component.
  */
 export function useSocket() {
-  const { isAuthenticated, tokens, user } = useAuthStore();
+  const { isAuthenticated, accessToken, user } = useAuthStore();
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || !tokens?.accessToken) {
+    if (!isAuthenticated || !accessToken) {
       // Not authenticated — ensure socket is disconnected
       disconnectSocket();
       socketRef.current = null;
       return;
     }
 
-    const socket = getSocket(tokens.accessToken);
+    const socket = getSocket(accessToken);
     socketRef.current = socket;
 
     // Join personal room once connected
@@ -44,7 +44,7 @@ export function useSocket() {
     return () => {
       socket.off('connect', handleConnect);
     };
-  }, [isAuthenticated, tokens?.accessToken, user?.id]);
+  }, [isAuthenticated, accessToken, user?.id]);
 
   return socketRef.current;
 }
