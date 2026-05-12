@@ -36,14 +36,20 @@ export interface UpdateSosStatusPayload {
 
 export const sosApi = {
   create: (payload: CreateSosPayload) =>
-    api.post<SosAlert>('/sos/create', payload),
+    api.post<SosAlert>('/sos', payload),
 
   updateStatus: (payload: UpdateSosStatusPayload) =>
     api.patch<SosAlert>('/sos/status', payload),
 
   getActive: () =>
-    api.get<SosAlert[]>('/sos/active'),
+    api.get<{ data: SosAlert[] }>('/sos/active'),
 
   getById: (alertId: string) =>
     api.get<SosAlert>(`/sos/${alertId}`),
+
+  getHistory: (page = 1, limit = 20) =>
+    api.get<{ alerts: SosAlert[]; total: number; totalPages: number }>(`/sos/history?page=${page}&limit=${limit}`),
+
+  cancel: (alertId: string) =>
+    api.post<null>(`/sos/${alertId}/cancel`, {}),
 };
