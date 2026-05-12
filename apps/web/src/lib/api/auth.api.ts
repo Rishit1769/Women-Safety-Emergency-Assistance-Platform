@@ -40,21 +40,32 @@ export interface LoginResponse {
   tokens: AuthTokens;
 }
 
+export interface ResendOtpPayload {
+  identifier: string;
+  purpose: 'register' | 'login' | 'reset' | 'verify';
+}
+
 // ─── API calls ────────────────────────────────────────────────────
 
 export const authApi = {
   register: (payload: RegisterPayload) =>
-    api.post<{ userId: string }>('/auth/register', payload),
+    api.post<{ maskedEmail: string; maskedPhone: string }>('/auth/register', payload),
 
   verifyOtp: (payload: VerifyOtpPayload) =>
-    api.post<{ verified: boolean }>('/auth/verify-otp', payload),
+    api.post<{ user: AuthUser; accessToken: string }>('/auth/verify-otp', payload),
 
   login: (payload: LoginPayload) =>
-    api.post<LoginResponse>('/auth/login', payload),
+    api.post<{ maskedEmail: string; requiresOTP: boolean }>('/auth/login', payload),
 
   refreshToken: (refreshToken: string) =>
-    api.post<AuthTokens>('/auth/refresh', { refreshToken }),
+    api.post<{ accessToken: string }>('/auth/refresh', { refreshToken }),
 
   logout: () =>
-    api.post<void>('/auth/logout'),
+    api.post<null>('/auth/logout'),
+
+  resendOtp: (payload: ResendOtpPayload) =>
+    api.post<{ maskedEmail: string }>('/auth/resend-otp', payload),
+
+  getMe: () =>
+    api.get<AuthUser>('/auth/me'),
 };
