@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { sosApi } from '@/lib/api/sos.api';
 import { useAuthStore } from '@/store/auth.store';
 import { useSosRealtime } from '@/hooks/useSosRealtime';
+import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
 
 export default function SosActivePage() {
   const router = useRouter();
@@ -15,6 +16,11 @@ export default function SosActivePage() {
 
   // Subscribe to realtime events for this alert
   const realtime = useSosRealtime(alertId);
+
+  // Broadcast GPS location to responders every 5 seconds while alert is active
+  useLocationBroadcast({
+    alertId: realtime.isResolved || realtime.isCancelled ? null : alertId,
+  });
 
   useEffect(() => {
     if (!isAuthenticated) router.push('/auth/login');
