@@ -1,0 +1,922 @@
+// RakshaAI — Prisma Schema
+// Database: PostgreSQL 15+ with PostGIS extension
+// Generated from BackendSchema.txt specification
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuidOssp(map: "uuid-ossp"), postgis, pgTrgm(map: "pg_trgm")]
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  user
+  volunteer
+  police
+  admin
+  guardian
+}
+
+enum Gender {
+  female
+  male
+  non_binary
+  prefer_not_to_say
+}
+
+enum AlertStatus {
+  pending
+  active
+  accepted
+  resolved
+  false_alarm
+  escalated
+  cancelled
+}
+
+enum AlertType {
+  harassment
+  assault
+  medical_emergency
+  kidnapping_risk
+  cyberstalking
+  suspicious_activity
+  general_danger
+  stalking
+  theft
+}
+
+enum SosTriggerMethod {
+  tap
+  long_press
+  voice
+  shake
+  silent
+  hidden_trigger
+  auto_journey
+}
+
+enum VolunteerStatus {
+  available
+  busy
+  offline
+  suspended
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+  suspended
+}
+
+enum JourneyStatus {
+  active
+  completed
+  cancelled
+  deviation_detected
+  sos_triggered
+  delayed
+}
+
+enum ReportCategory {
+  unsafe_area
+  stalking
+  broken_streetlight
+  suspicious_behavior
+  unsafe_transport
+  harassment
+  poor_lighting
+  other
+}
+
+enum EvidenceType {
+  audio
+  video
+  image
+  gps_log
+  screenshot
+}
+
+enum NotificationType {
+  sos_alert
+  journey_alert
+  volunteer_alert
+  guardian_alert
+  community_alert
+  system_alert
+  escalation_alert
+}
+
+enum RouteRiskLevel {
+  safe
+  low
+  moderate
+  high
+  critical
+}
+
+enum IncidentSeverity {
+  low
+  moderate
+  high
+  critical
+}
+
+enum FakeCallStatus {
+  scheduled
+  active
+  completed
+  cancelled
+}
+
+enum CyberReportType {
+  cyberstalking
+  fake_profile
+  blackmail
+  scam
+  harassment
+  doxxing
+}
+
+enum TransportAlertType {
+  route_deviation
+  suspicious_stoppage
+  speed_anomaly
+  unknown_vehicle
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CORE TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  fullName            String    @map("full_name") @db.VarChar(100)
+  email               String    @unique @db.VarChar(150)
+  phone               String    @unique @db.VarChar(15)
+  passwordHash        String    @map("password_hash")
+  role                UserRole  @default(user)
+  gender              Gender?
+  dateOfBirth         DateTime? @map("date_of_birth") @db.Date
+  profileImageUrl     String?   @map("profile_image_url")
+  isActive            Boolean   @default(true) @map("is_active")
+  isVerified          Boolean   @default(false) @map("is_verified")
+  isPhoneVerified     Boolean   @default(false) @map("is_phone_verified")
+  isEmailVerified     Boolean   @default(false) @map("is_email_verified")
+  lastLoginAt         DateTime? @map("last_login_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  // Relations
+  safetyProfile       UserSafetyProfile?
+  emergencyContacts   EmergencyContact[]
+  sessions            UserSession[]
+  otpVerifications    OtpVerification[]
+  volunteerProfile    Volunteer?
+  policeAccount       PoliceAccount?
+  sosAlerts           SosAlert[]
+  userLocations       UserLocation[]
+  journeys            Journey[]
+  geofences           Geofence[]
+  communityReports    CommunityReport[]   @relation("reporter")
+  reportUpvotes       ReportUpvote[]
+  aiRiskAnalyses      AiRiskAnalysis[]
+  aiRouteRecommendations AiRouteRecommendation[]
+  emergencyEvidences  EmergencyEvidence[]
+  gpsEvidenceLogs     GpsEvidenceLog[]
+  transportTrips      TransportTrip[]
+  fakeCalls           FakeCall[]
+  cyberReports        CyberReport[]       @relation("reporter_cyber")
+  pushTokens          PushToken[]
+  notificationLogs    NotificationLog[]
+  guardianSessions    GuardianTrackingSession[] @relation("guardian")
+  trackedSessions     GuardianTrackingSession[] @relation("tracked_user")
+  alertStatusChanges  AlertStatusHistory[]
+  verifiedReports     CommunityReport[]   @relation("verifier")
+  safeZonesAdded      SafeZone[]
+  cyberAssigned       CyberReport[]       @relation("cyber_assigned")
+
+  @@index([email], name: "idx_users_email")
+  @@index([phone], name: "idx_users_phone")
+  @@index([role], name: "idx_users_role")
+  @@map("users")
+}
+
+model UserSafetyProfile {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  bloodGroup       String?  @map("blood_group") @db.VarChar(5)
+  medicalConditions String[] @map("medical_conditions")
+  allergies        String[]
+  disabilityNotes  String?  @map("disability_notes")
+  medications      String?
+  emergencyNotes   String?  @map("emergency_notes")
+  homeAddress      String?  @map("home_address")
+  workAddress      String?  @map("work_address")
+  voiceSosKeyword  String   @default("help me") @map("voice_sos_keyword") @db.VarChar(50)
+  shakeSensitivity String   @default("medium") @map("shake_sensitivity") @db.VarChar(10)
+  silentSosEnabled Boolean  @default(false) @map("silent_sos_enabled")
+  autoEvidence     Boolean  @default(true) @map("auto_evidence")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_safety_profiles")
+}
+
+model EmergencyContact {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  phone           String   @db.VarChar(15)
+  email           String?  @db.VarChar(150)
+  relationship    String?  @db.VarChar(50)
+  priorityOrder   Int      @default(1) @map("priority_order")
+  notifyOnSos     Boolean  @default(true) @map("notify_on_sos")
+  notifyOnJourney Boolean  @default(true) @map("notify_on_journey")
+  canTrackLive    Boolean  @default(true) @map("can_track_live")
+  isAppUser       Boolean  @default(false) @map("is_app_user")
+  linkedUserId    String?  @map("linked_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_emergency_contacts_user")
+  @@map("emergency_contacts")
+}
+
+model UserSession {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @map("token_hash")
+  deviceType String?  @map("device_type") @db.VarChar(20)
+  deviceId   String?  @map("device_id") @db.VarChar(200)
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  isActive   Boolean  @default(true) @map("is_active")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_sessions_user_id")
+  @@index([tokenHash], name: "idx_sessions_token")
+  @@map("user_sessions")
+}
+
+model OtpVerification {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  identifier  String   @db.VarChar(150)
+  otpHash     String   @map("otp_hash")
+  purpose     String   @db.VarChar(30)
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3) @map("max_attempts")
+  isUsed      Boolean  @default(false) @map("is_used")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_verifications")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// VOLUNTEER TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model Volunteer {
+  id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String             @unique @map("user_id") @db.Uuid
+  status              VolunteerStatus    @default(offline)
+  verificationStatus  VerificationStatus @default(pending) @map("verification_status")
+  aadhaarNumber       String?            @map("aadhaar_number") @db.VarChar(12)
+  aadhaarVerified     Boolean            @default(false) @map("aadhaar_verified")
+  govtIdUrl           String?            @map("govt_id_url")
+  selfieUrl           String?            @map("selfie_url")
+  ngoAffiliation      String?            @map("ngo_affiliation") @db.VarChar(200)
+  skills              String[]
+  languagesSpoken     String[]           @map("languages_spoken")
+  serviceRadiusKm     Int                @default(5) @map("service_radius_km")
+  totalResponses      Int                @default(0) @map("total_responses")
+  successfulResponses Int                @default(0) @map("successful_responses")
+  rating              Decimal            @default(0.00) @db.Decimal(3, 2)
+  ratingCount         Int                @default(0) @map("rating_count")
+  lastActiveAt        DateTime?          @map("last_active_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability      VolunteerAvailability[]
+  assignedAlerts    SosAlert[]                @relation("assigned_volunteer")
+
+  @@map("volunteers")
+}
+
+model VolunteerAvailability {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  volunteerId String   @map("volunteer_id") @db.Uuid
+  dayOfWeek   Int      @map("day_of_week")
+  startTime   DateTime @map("start_time") @db.Time
+  endTime     DateTime @map("end_time") @db.Time
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@map("volunteer_availability")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// POLICE & AUTHORITY TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model PoliceStation {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String   @db.VarChar(200)
+  stationCode    String?  @unique @map("station_code") @db.VarChar(20)
+  address        String
+  city           String   @db.VarChar(100)
+  state          String   @db.VarChar(100)
+  pincode        String?  @db.VarChar(10)
+  phonePrimary   String?  @map("phone_primary") @db.VarChar(15)
+  phoneSecondary String?  @map("phone_secondary") @db.VarChar(15)
+  email          String?  @db.VarChar(150)
+  erssLinked     Boolean  @default(false) @map("erss_linked")
+  isActive       Boolean  @default(true) @map("is_active")
+  // latitude/longitude stored as Float — PostGIS GEOGRAPHY handled via raw SQL for geospatial queries
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  officers       PoliceAccount[]
+  assignedAlerts SosAlert[]      @relation("assigned_station")
+
+  @@map("police_stations")
+}
+
+model PoliceAccount {
+  id                 String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId             String             @unique @map("user_id") @db.Uuid
+  badgeNumber        String             @unique @map("badge_number") @db.VarChar(30)
+  rank               String?            @db.VarChar(50)
+  stationId          String             @map("station_id") @db.Uuid
+  isOnDuty           Boolean            @default(false) @map("is_on_duty")
+  verificationStatus VerificationStatus @default(pending) @map("verification_status")
+  govtIdUrl          String?            @map("govt_id_url")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station        PoliceStation @relation(fields: [stationId], references: [id])
+  assignedAlerts SosAlert[]    @relation("assigned_police")
+
+  @@map("police_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SOS & ALERT TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model SosAlert {
+  id                  String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertCode           String           @unique @map("alert_code") @db.VarChar(20)
+  userId              String           @map("user_id") @db.Uuid
+  triggerMethod       SosTriggerMethod @map("trigger_method")
+  alertType           AlertType        @default(general_danger) @map("alert_type")
+  status              AlertStatus      @default(pending)
+  severity            IncidentSeverity @default(high)
+  description         String?
+  // Geospatial: stored as lat/lng floats; PostGIS queries use raw SQL via $queryRaw
+  triggerLatitude     Float            @map("trigger_latitude")
+  triggerLongitude    Float            @map("trigger_longitude")
+  triggerAddress      String?          @map("trigger_address")
+  currentLatitude     Float?           @map("current_latitude")
+  currentLongitude    Float?           @map("current_longitude")
+  assignedVolunteerId String?          @map("assigned_volunteer_id") @db.Uuid
+  assignedPoliceId    String?          @map("assigned_police_id") @db.Uuid
+  assignedStationId   String?          @map("assigned_station_id") @db.Uuid
+  aiClassification    AlertType?       @map("ai_classification")
+  aiConfidenceScore   Decimal?         @map("ai_confidence_score") @db.Decimal(5, 4)
+  aiRiskScore         Decimal?         @map("ai_risk_score") @db.Decimal(5, 4)
+  escalatedAt         DateTime?        @map("escalated_at")
+  escalationReason    String?          @map("escalation_reason")
+  resolvedAt          DateTime?        @map("resolved_at")
+  resolutionNotes     String?          @map("resolution_notes")
+  volunteerEtaSeconds Int?             @map("volunteer_eta_seconds")
+  policeEtaSeconds    Int?             @map("police_eta_seconds")
+  isTestAlert         Boolean          @default(false) @map("is_test_alert")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  user              User                     @relation(fields: [userId], references: [id])
+  assignedVolunteer Volunteer?               @relation("assigned_volunteer", fields: [assignedVolunteerId], references: [id])
+  assignedPolice    PoliceAccount?           @relation("assigned_police", fields: [assignedPoliceId], references: [id])
+  assignedStation   PoliceStation?           @relation("assigned_station", fields: [assignedStationId], references: [id])
+  statusHistory     AlertStatusHistory[]
+  notifications     AlertNotification[]
+  evidence          EmergencyEvidence[]
+  gpsLogs           GpsEvidenceLog[]
+  aiClassifications AiEmergencyClassification[]
+  transportTrips    TransportTrip[]
+
+  @@index([userId], name: "idx_sos_alerts_user_id")
+  @@index([status], name: "idx_sos_alerts_status")
+  @@index([createdAt(sort: Desc)], name: "idx_sos_alerts_created_at")
+  @@map("sos_alerts")
+}
+
+model AlertStatusHistory {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertId       String       @map("alert_id") @db.Uuid
+  changedById   String?      @map("changed_by_id") @db.Uuid
+  changedByRole UserRole?    @map("changed_by_role")
+  oldStatus     AlertStatus? @map("old_status")
+  newStatus     AlertStatus  @map("new_status")
+  notes         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  alert     SosAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  changedBy User?    @relation(fields: [changedById], references: [id])
+
+  @@map("alert_status_history")
+}
+
+model AlertNotification {
+  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertId          String           @map("alert_id") @db.Uuid
+  recipientId      String?          @map("recipient_id") @db.Uuid
+  recipientPhone   String?          @map("recipient_phone") @db.VarChar(15)
+  recipientEmail   String?          @map("recipient_email") @db.VarChar(150)
+  notificationType NotificationType @map("notification_type")
+  channel          String           @db.VarChar(20)
+  message          String?
+  isDelivered      Boolean          @default(false) @map("is_delivered")
+  deliveredAt      DateTime?        @map("delivered_at")
+  failureReason    String?          @map("failure_reason")
+  retryCount       Int              @default(0) @map("retry_count")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  alert SosAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId], name: "idx_alert_notifications_alert")
+  @@map("alert_notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LOCATION TRACKING TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model UserLocation {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  latitude       Float
+  longitude      Float
+  accuracyMeters Decimal?  @map("accuracy_meters") @db.Decimal(8, 2)
+  altitudeMeters Decimal?  @map("altitude_meters") @db.Decimal(8, 2)
+  speedMps       Decimal?  @map("speed_mps") @db.Decimal(8, 4)
+  bearingDegrees Decimal?  @map("bearing_degrees") @db.Decimal(6, 2)
+  batteryLevel   Int?      @map("battery_level")
+  isSharing      Boolean   @default(true) @map("is_sharing")
+  alertId        String?   @map("alert_id") @db.Uuid
+  journeyId      String?   @map("journey_id") @db.Uuid
+  recordedAt     DateTime  @default(now()) @map("recorded_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journey Journey? @relation(fields: [journeyId], references: [id])
+
+  @@index([userId], name: "idx_user_locations_user_id")
+  @@index([recordedAt(sort: Desc)], name: "idx_user_locations_recorded")
+  @@map("user_locations")
+}
+
+model Journey {
+  id                  String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String        @map("user_id") @db.Uuid
+  originLatitude      Float         @map("origin_latitude")
+  originLongitude     Float         @map("origin_longitude")
+  originAddress       String?       @map("origin_address")
+  destinationLatitude Float         @map("destination_latitude")
+  destinationLongitude Float        @map("destination_longitude")
+  destinationAddress  String?       @map("destination_address")
+  routeRiskLevel      RouteRiskLevel @default(safe) @map("route_risk_level")
+  status              JourneyStatus @default(active)
+  expectedArrivalAt   DateTime      @map("expected_arrival_at")
+  actualArrivalAt     DateTime?     @map("actual_arrival_at")
+  transportMode       String        @default("walking") @map("transport_mode") @db.VarChar(20)
+  vehicleNumber       String?       @map("vehicle_number") @db.VarChar(20)
+  distanceKm          Decimal?      @map("distance_km") @db.Decimal(8, 3)
+  totalDurationMins   Int?          @map("total_duration_mins")
+  deviationDetected   Boolean       @default(false) @map("deviation_detected")
+  deviationAt         DateTime?     @map("deviation_at")
+  deviationLatitude   Float?        @map("deviation_latitude")
+  deviationLongitude  Float?        @map("deviation_longitude")
+  guardiansNotified   String[]      @map("guardians_notified") @db.Uuid
+  sosTrigered         Boolean       @default(false) @map("sos_triggered")
+  areaSafetyRating    Int?          @map("area_safety_rating")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  geofences             Geofence[]
+  locations             UserLocation[]
+  transportTrips        TransportTrip[]
+  aiRouteRecommendation AiRouteRecommendation?
+
+  @@index([userId], name: "idx_journeys_user_id")
+  @@index([status], name: "idx_journeys_status")
+  @@map("journeys")
+}
+
+model Geofence {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  journeyId    String?  @map("journey_id") @db.Uuid
+  name         String?  @db.VarChar(100)
+  // Boundary stored as GeoJSON string; PostGIS polygon via raw SQL
+  boundaryJson String?  @map("boundary_json")
+  alertOnEnter Boolean  @default(false) @map("alert_on_enter")
+  alertOnExit  Boolean  @default(true) @map("alert_on_exit")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journey Journey? @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@map("geofences")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SAFETY INTELLIGENCE TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model SafetyHotspot {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  latitude        Float
+  longitude       Float
+  city            String?        @db.VarChar(100)
+  state           String?        @db.VarChar(100)
+  category        ReportCategory
+  title           String?        @db.VarChar(200)
+  description     String?
+  riskScore       Decimal        @default(0.0) @map("risk_score") @db.Decimal(5, 4)
+  reportCount     Int            @default(1) @map("report_count")
+  verifiedCount   Int            @default(0) @map("verified_count")
+  isVerified      Boolean        @default(false) @map("is_verified")
+  isActive        Boolean        @default(true) @map("is_active")
+  peakDangerHours Int[]          @map("peak_danger_hours")
+  lastIncidentAt  DateTime?      @map("last_incident_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  communityReports CommunityReport[]
+
+  @@index([city], name: "idx_hotspots_city")
+  @@map("safety_hotspots")
+}
+
+model CommunityReport {
+  id          String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reporterId  String?        @map("reporter_id") @db.Uuid
+  isAnonymous Boolean        @default(true) @map("is_anonymous")
+  category    ReportCategory
+  title       String?        @db.VarChar(200)
+  description String?
+  latitude    Float
+  longitude   Float
+  address     String?
+  city        String?        @db.VarChar(100)
+  imageUrls   String[]       @map("image_urls")
+  upvoteCount Int            @default(0) @map("upvote_count")
+  isVerified  Boolean        @default(false) @map("is_verified")
+  verifiedBy  String?        @map("verified_by") @db.Uuid
+  hotspotId   String?        @map("hotspot_id") @db.Uuid
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  reporter User?          @relation("reporter", fields: [reporterId], references: [id])
+  verifier User?          @relation("verifier", fields: [verifiedBy], references: [id])
+  hotspot  SafetyHotspot? @relation(fields: [hotspotId], references: [id])
+  upvotes  ReportUpvote[]
+
+  @@index([createdAt(sort: Desc)], name: "idx_community_reports_created")
+  @@map("community_reports")
+}
+
+model ReportUpvote {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reportId  String   @map("report_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  report CommunityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, userId])
+  @@map("report_upvotes")
+}
+
+model SafeZone {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String   @db.VarChar(200)
+  type           String   @db.VarChar(50)
+  latitude       Float
+  longitude      Float
+  address        String?
+  city           String?  @db.VarChar(100)
+  phone          String?  @db.VarChar(15)
+  is24x7         Boolean  @default(false) @map("is_24x7")
+  operatingHours Json?    @map("operating_hours")
+  isVerified     Boolean  @default(false) @map("is_verified")
+  isActive       Boolean  @default(true) @map("is_active")
+  addedBy        String?  @map("added_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  addedByUser User? @relation(fields: [addedBy], references: [id])
+
+  @@index([type], name: "idx_safe_zones_type")
+  @@map("safe_zones")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AI & RISK INTELLIGENCE TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model AiRiskAnalysis {
+  id                   String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId               String         @map("user_id") @db.Uuid
+  latitude             Float
+  longitude            Float
+  timeOfAnalysis       DateTime       @default(now()) @map("time_of_analysis")
+  riskScore            Decimal        @map("risk_score") @db.Decimal(5, 4)
+  riskLevel            RouteRiskLevel @map("risk_level")
+  contributingFactors  Json?          @map("contributing_factors")
+  nearbyIncidents      Int            @default(0) @map("nearby_incidents")
+  nearbyHotspots       Int            @default(0) @map("nearby_hotspots")
+  recommendedActions   String[]       @map("recommended_actions")
+  safeZonesNearby      Int            @default(0) @map("safe_zones_nearby")
+  modelVersion         String         @default("gemini-1.5-pro") @map("model_version") @db.VarChar(20)
+  latencyMs            Int?           @map("latency_ms")
+  createdAt            DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId], name: "idx_ai_risk_user_id")
+  @@map("ai_risk_analyses")
+}
+
+model AiEmergencyClassification {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertId             String    @map("alert_id") @db.Uuid
+  inputText           String?   @map("input_text")
+  audioTranscript     String?   @map("audio_transcript")
+  classifiedType      AlertType @map("classified_type")
+  confidenceScore     Decimal   @map("confidence_score") @db.Decimal(5, 4)
+  secondaryType       AlertType? @map("secondary_type")
+  secondaryConfidence Decimal?  @map("secondary_confidence") @db.Decimal(5, 4)
+  recommendedResponse String?   @map("recommended_response")
+  escalateToPolice    Boolean   @default(false) @map("escalate_to_police")
+  modelUsed           String    @default("gemini-1.5-pro") @map("model_used") @db.VarChar(50)
+  tokensUsed          Int?      @map("tokens_used")
+  latencyMs           Int?      @map("latency_ms")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  alert SosAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@map("ai_emergency_classifications")
+}
+
+model AiRouteRecommendation {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  journeyId       String         @unique @map("journey_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  originLat       Float          @map("origin_lat")
+  originLng       Float          @map("origin_lng")
+  destinationLat  Float          @map("destination_lat")
+  destinationLng  Float          @map("destination_lng")
+  alternativeRoutes Json?        @map("alternative_routes")
+  riskLevel       RouteRiskLevel @map("risk_level")
+  riskFactors     String[]       @map("risk_factors")
+  distanceKm      Decimal?       @map("distance_km") @db.Decimal(8, 3)
+  durationMins    Int?           @map("duration_mins")
+  saferByPercent  Int?           @map("safer_by_percent")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  journey Journey @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("ai_route_recommendations")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EVIDENCE TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model EmergencyEvidence {
+  id                  String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertId             String       @map("alert_id") @db.Uuid
+  userId              String       @map("user_id") @db.Uuid
+  evidenceType        EvidenceType @map("evidence_type")
+  fileUrl             String       @map("file_url")
+  fileSizeBytes       BigInt?      @map("file_size_bytes")
+  durationSeconds     Int?         @map("duration_seconds")
+  thumbnailUrl        String?      @map("thumbnail_url")
+  capturedLatitude    Float?       @map("captured_latitude")
+  capturedLongitude   Float?       @map("captured_longitude")
+  capturedAt          DateTime     @default(now()) @map("captured_at")
+  isEncrypted         Boolean      @default(true) @map("is_encrypted")
+  encryptionKeyRef    String?      @map("encryption_key_ref")
+  checksumSha256      String       @map("checksum_sha256")
+  isSharedWithPolice  Boolean      @default(false) @map("is_shared_with_police")
+  sharedAt            DateTime?    @map("shared_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+
+  alert SosAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id])
+
+  @@index([alertId], name: "idx_evidence_alert_id")
+  @@index([userId], name: "idx_evidence_user_id")
+  @@map("emergency_evidence")
+}
+
+model GpsEvidenceLog {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertId        String   @map("alert_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  latitude       Float
+  longitude      Float
+  accuracyMeters Decimal? @map("accuracy_meters") @db.Decimal(8, 2)
+  speedMps       Decimal? @map("speed_mps") @db.Decimal(8, 4)
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+
+  alert SosAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id])
+
+  @@index([alertId], name: "idx_gps_logs_alert_id")
+  @@index([recordedAt], name: "idx_gps_logs_recorded")
+  @@map("gps_evidence_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TRANSPORT SAFETY
+// ─────────────────────────────────────────────────────────────────
+
+model TransportTrip {
+  id               String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  journeyId        String?             @map("journey_id") @db.Uuid
+  vehicleNumber    String?             @map("vehicle_number") @db.VarChar(20)
+  vehicleNumberOcr String?             @map("vehicle_number_ocr") @db.VarChar(20)
+  ocrConfidence    Decimal?            @map("ocr_confidence") @db.Decimal(5, 4)
+  vehicleType      String?             @map("vehicle_type") @db.VarChar(30)
+  driverName       String?             @map("driver_name") @db.VarChar(100)
+  rideApp          String?             @map("ride_app") @db.VarChar(50)
+  rideId           String?             @map("ride_id") @db.VarChar(100)
+  startLatitude    Float?              @map("start_latitude")
+  startLongitude   Float?              @map("start_longitude")
+  startAddress     String?             @map("start_address")
+  endLatitude      Float?              @map("end_latitude")
+  endLongitude     Float?              @map("end_longitude")
+  endAddress       String?             @map("end_address")
+  status           String              @default("active") @db.VarChar(20)
+  alertType        TransportAlertType? @map("alert_type")
+  alertTriggered   Boolean             @default(false) @map("alert_triggered")
+  alertTriggeredAt DateTime?           @map("alert_triggered_at")
+  alertId          String?             @map("alert_id") @db.Uuid
+  startedAt        DateTime            @default(now()) @map("started_at")
+  endedAt          DateTime?           @map("ended_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journey Journey?  @relation(fields: [journeyId], references: [id])
+  alert   SosAlert? @relation(fields: [alertId], references: [id])
+
+  @@index([userId], name: "idx_transport_user_id")
+  @@map("transport_trips")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FAKE CALL TABLE
+// ─────────────────────────────────────────────────────────────────
+
+model FakeCall {
+  id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  callerName        String         @default("Maa") @map("caller_name") @db.VarChar(100)
+  callerNumber      String?        @map("caller_number") @db.VarChar(15)
+  scheduledAt       DateTime       @map("scheduled_at")
+  delaySeconds      Int            @default(0) @map("delay_seconds")
+  status            FakeCallStatus @default(scheduled)
+  scriptUsed        String         @default("family_checkin") @map("script_used") @db.VarChar(50)
+  triggerLatitude   Float?         @map("trigger_latitude")
+  triggerLongitude  Float?         @map("trigger_longitude")
+  triggeredAt       DateTime?      @map("triggered_at")
+  completedAt       DateTime?      @map("completed_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fake_calls")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CYBER SAFETY TABLE
+// ─────────────────────────────────────────────────────────────────
+
+model CyberReport {
+  id                   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reporterId           String          @map("reporter_id") @db.Uuid
+  reportType           CyberReportType @map("report_type")
+  platform             String?         @db.VarChar(100)
+  perpetratorUsername  String?         @map("perpetrator_username") @db.VarChar(200)
+  perpetratorProfile   String?         @map("perpetrator_profile")
+  description          String
+  evidenceUrls         String[]        @map("evidence_urls")
+  isAnonymous          Boolean         @default(false) @map("is_anonymous")
+  status               String          @default("received") @db.VarChar(30)
+  assignedTo           String?         @map("assigned_to") @db.Uuid
+  policeComplaintNo    String?         @map("police_complaint_no") @db.VarChar(50)
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  reporter   User  @relation("reporter_cyber", fields: [reporterId], references: [id])
+  assignedAdmin User? @relation("cyber_assigned", fields: [assignedTo], references: [id])
+
+  @@map("cyber_reports")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// NOTIFICATION TABLES
+// ─────────────────────────────────────────────────────────────────
+
+model PushToken {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  platform  String   @db.VarChar(10)
+  deviceId  String?  @map("device_id") @db.VarChar(200)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@map("push_tokens")
+}
+
+model NotificationLog {
+  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String?          @map("user_id") @db.Uuid
+  notificationType NotificationType @map("notification_type")
+  title            String?          @db.VarChar(200)
+  body             String?
+  data             Json?
+  channel          String           @db.VarChar(20)
+  referenceId      String?          @map("reference_id") @db.Uuid
+  isDelivered      Boolean          @default(false) @map("is_delivered")
+  deliveredAt      DateTime?        @map("delivered_at")
+  readAt           DateTime?        @map("read_at")
+  failureReason    String?          @map("failure_reason")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId], name: "idx_notif_logs_user")
+  @@index([notificationType], name: "idx_notif_logs_type")
+  @@map("notification_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// GUARDIAN TRACKING TABLE
+// ─────────────────────────────────────────────────────────────────
+
+model GuardianTrackingSession {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  guardianId     String    @map("guardian_id") @db.Uuid
+  trackedUserId  String    @map("tracked_user_id") @db.Uuid
+  alertId        String?   @map("alert_id") @db.Uuid
+  journeyId      String?   @map("journey_id") @db.Uuid
+  isActive       Boolean   @default(true) @map("is_active")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  guardian    User @relation("guardian", fields: [guardianId], references: [id])
+  trackedUser User @relation("tracked_user", fields: [trackedUserId], references: [id])
+
+  @@index([guardianId])
+  @@index([trackedUserId])
+  @@map("guardian_tracking_sessions")
+}
