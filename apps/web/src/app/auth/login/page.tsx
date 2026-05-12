@@ -1,198 +1,242 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useMutation } from '@tanstack/react-query';
-import { authApi } from '@/lib/api/auth.api';
+import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import { useAuthStore } from '@/store/auth.store';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
+type LoginMode = 'email' | 'mpin';
+type Step = 'credentials' | 'otp';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
 
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [mode, setMode] = useState<LoginMode>('email');
+  const [step, setStep] = useState<Step>('credentials');
+
+  // Email login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState('');
+
+  // OTP state (for email login 2FA)
+  const [otp, setOtp] = useState('');
+
+  // MPIN login state
+  const [mpinEmail, setMpinEmail] = useState('');
+  const [mpinPassword, setMpinPassword] = useState('');
+  const [mpinDigits, setMpinDigits] = useState('');
+  const [showMpinPassword, setShowMpinPassword] = useState(false);
+
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Step 1 — Submit email+password, get OTP sent
-  const loginMutation = useMutation({
-    mutationFn: () => authApi.login({ email, password }),
-    onSuccess: (res) => {
-      if (res.data) {
-        setMaskedEmail(res.data.maskedEmail ?? email);
-        setStep('otp');
-        setError('');
-      }
-    },
-    onError: (err: Error) => {
-      setError(err.message ?? 'Login failed. Please try again.');
-    },
-  });
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email || !password) { setError('Please enter your email and password.'); return; }
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: email.trim().toLowerCase(), password, loginType: 'email' }),
+      });
+      const data = (await res.json()) as { success: boolean; message: string; data?: { maskedEmail: string } };
+      if (!res.ok || !data.success) { setError(data.message || 'Login failed.'); return; }
+      setMaskedEmail(data.data?.maskedEmail ?? email);
+      sessionStorage.setItem('rakshaai_pending_email', email.trim().toLowerCase());
+      sessionStorage.setItem('rakshaai_otp_purpose', 'login');
+      setStep('otp');
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
+  }
 
-  // Step 2 — Submit OTP, receive tokens
-  const verifyMutation = useMutation({
-    mutationFn: () =>
-      authApi.verifyOtp({ identifier: email, otp, purpose: 'login' }),
-    onSuccess: (res) => {
-      if (res.data) {
-        const { user, accessToken } = res.data as {
-          user: import('@/lib/api/auth.api').AuthUser;
-          accessToken: string;
-        };
-        setAuth(user, accessToken, '');
-        router.push('/dashboard');
-      }
-    },
-    onError: (err: Error) => {
-      setError(err.message ?? 'Invalid OTP. Please try again.');
-    },
-  });
+  async function handleOtpVerify(e: React.FormEvent) {
+    e.preventDefault();
+    if (otp.length < 6) { setError('Enter all 6 digits.'); return; }
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email.trim().toLowerCase(), otp, purpose: 'login' }),
+      });
+      const data = (await res.json()) as {
+        success: boolean; message: string;
+        data?: { user: { id: string; fullName: string; email: string; phone: string; role: string; isVerified: boolean }; accessToken: string };
+      };
+      if (!res.ok || !data.success) { setError(data.message || 'Invalid OTP.'); return; }
+      setAuth(data.data!.user, data.data!.accessToken, '');
+      sessionStorage.removeItem('rakshaai_pending_email');
+      sessionStorage.removeItem('rakshaai_otp_purpose');
+      router.push('/dashboard');
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
+  }
 
-  const resendMutation = useMutation({
-    mutationFn: () =>
-      authApi.resendOtp({ identifier: email, purpose: 'login' }),
-    onSuccess: () => setError(''),
-  });
+  async function handleResendOtp() {
+    try {
+      await fetch(`${API_BASE}/auth/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email.trim().toLowerCase(), purpose: 'login' }),
+      });
+    } catch { /* ignore */ }
+  }
+
+  async function handleMpinLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mpinEmail || !mpinPassword || mpinDigits.length < 4) {
+      setError('Please fill all fields and enter your MPIN.'); return;
+    }
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API_BASE}/auth/login-mpin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: mpinEmail.trim().toLowerCase(), password: mpinPassword, mpin: mpinDigits }),
+      });
+      const data = (await res.json()) as {
+        success: boolean; message: string;
+        data?: { user: { id: string; fullName: string; email: string; phone: string; role: string; isVerified: boolean }; accessToken: string };
+      };
+      if (!res.ok || !data.success) { setError(data.message || 'Login failed.'); return; }
+      setAuth(data.data!.user, data.data!.accessToken, '');
+      router.push('/dashboard');
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
+  }
 
   return (
-    <div className="min-h-screen bg-light flex items-center justify-center p-4">
-      <div className="card w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-hero text-navy mb-1">
-            Raksha<span className="text-primary">AI</span>
-          </h1>
-          <p className="text-caption text-muted">Sign in to your account</p>
+    <main className="relative min-h-screen bg-gradient-to-br from-[#0B1026] via-[#111827] to-[#0B1026] flex items-center justify-center px-4">
+      <div className="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 right-0 w-72 h-72 rounded-full bg-[#7B61FF]/10 blur-3xl" />
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="text-center mb-7">
+          <Link href="/">
+            <h1 className="text-3xl font-bold text-white">Raksha<span className="text-primary">AI</span></h1>
+          </Link>
+          <p className="mt-1 text-sm text-white/35">Sign in to your account</p>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-emergency text-emergency text-sm">
-            {error}
-          </div>
-        )}
-
-        {step === 'credentials' ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setError('');
-              loginMutation.mutate();
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-navy mb-1">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-navy mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="input-field"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loginMutation.isPending}
-              className="btn-primary w-full"
-            >
-              {loginMutation.isPending ? 'Sending OTP…' : 'Continue'}
-            </button>
-          </form>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setError('');
-              verifyMutation.mutate();
-            }}
-            className="space-y-4"
-          >
-            <p className="text-sm text-muted text-center">
-              Enter the 6-digit OTP sent to{' '}
-              <span className="font-semibold text-navy">{maskedEmail}</span>
-            </p>
-
-            <div>
-              <label htmlFor="otp" className="block text-sm font-medium text-navy mb-1">
-                OTP Code
-              </label>
-              <input
-                id="otp"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                pattern="\d{6}"
-                required
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-                className="input-field text-center text-2xl font-mono tracking-widest"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={verifyMutation.isPending || otp.length < 6}
-              className="btn-primary w-full"
-            >
-              {verifyMutation.isPending ? 'Verifying…' : 'Verify & Sign In'}
-            </button>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => resendMutation.mutate()}
-                disabled={resendMutation.isPending}
-                className="text-sm text-primary hover:underline disabled:opacity-50"
-              >
-                {resendMutation.isPending ? 'Sending…' : "Didn't receive OTP? Resend"}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl animate-slide-up">
+          <div className="flex border-b border-white/10">
+            {(['email', 'mpin'] as LoginMode[]).map((m) => (
+              <button key={m} onClick={() => { setMode(m); setError(''); setStep('credentials'); }}
+                className={['flex-1 py-3.5 text-sm font-medium transition-colors first:rounded-tl-2xl last:rounded-tr-2xl',
+                  mode === m ? 'text-white border-b-2 border-primary -mb-px' : 'text-white/35 hover:text-white/60'].join(' ')}>
+                {m === 'email' ? 'Email + Password' : 'MPIN Login'}
               </button>
-            </div>
+            ))}
+          </div>
 
-            <button
-              type="button"
-              onClick={() => { setStep('credentials'); setOtp(''); setError(''); }}
-              className="w-full text-sm text-muted hover:text-navy"
-            >
-              ← Change email
-            </button>
-          </form>
-        )}
+          <div className="p-7">
+            {error && (
+              <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl bg-emergency/10 border border-emergency/30 p-3">
+                <svg className="w-4 h-4 text-emergency flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs text-emergency">{error}</p>
+              </div>
+            )}
 
-        <p className="mt-6 text-center text-sm text-muted">
-          Don&apos;t have an account?{' '}
-          <Link href="/auth/register" className="text-primary font-medium hover:underline">
-            Create one
-          </Link>
-        </p>
+            {mode === 'email' && step === 'credentials' && (
+              <form onSubmit={handleEmailLogin} noValidate className="space-y-4">
+                <FloatingLabelInput label="Email Address" type="email" value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }} autoComplete="email" disabled={loading} />
+                <FloatingLabelInput
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  autoComplete="current-password"
+                  disabled={loading}
+                  rightElement={
+                    <button type="button" onClick={() => setShowPassword((v) => !v)} className="hover:text-white/70 transition-colors">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  }
+                />
+                <button type="submit" disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-semibold text-sm transition-all hover:bg-primary-600 active:scale-95 disabled:opacity-60">
+                  {loading ? <><Spinner /> Sending OTP…</> : 'Continue'}
+                </button>
+              </form>
+            )}
+
+            {mode === 'email' && step === 'otp' && (
+              <form onSubmit={handleOtpVerify} noValidate className="space-y-4">
+                <p className="text-sm text-white/40 text-center">
+                  Code sent to <span className="text-white/60 font-medium">{maskedEmail}</span>
+                </p>
+                <input type="text" inputMode="numeric" maxLength={6} value={otp}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '')); setError(''); }}
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  disabled={loading} aria-label="OTP code" />
+                <button type="submit" disabled={loading || otp.length < 6}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-semibold text-sm transition-all hover:bg-primary-600 active:scale-95 disabled:opacity-60">
+                  {loading ? <><Spinner /> Verifying…</> : 'Verify & Sign In'}
+                </button>
+                <div className="flex justify-between text-xs text-white/30">
+                  <button type="button" onClick={handleResendOtp} disabled={loading} className="hover:text-white/60 transition-colors">Resend OTP</button>
+                  <button type="button" onClick={() => { setStep('credentials'); setOtp(''); setError(''); }} className="hover:text-white/60 transition-colors">← Change email</button>
+                </div>
+              </form>
+            )}
+
+            {mode === 'mpin' && (
+              <form onSubmit={handleMpinLogin} noValidate className="space-y-4">
+                <FloatingLabelInput label="Email Address" type="email" value={mpinEmail}
+                  onChange={(e) => { setMpinEmail(e.target.value); setError(''); }} autoComplete="email" disabled={loading} />
+                <FloatingLabelInput
+                  label="Password"
+                  type={showMpinPassword ? 'text' : 'password'}
+                  value={mpinPassword}
+                  onChange={(e) => { setMpinPassword(e.target.value); setError(''); }}
+                  autoComplete="current-password"
+                  disabled={loading}
+                  rightElement={
+                    <button type="button" onClick={() => setShowMpinPassword((v) => !v)} className="hover:text-white/70 transition-colors">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  }
+                />
+                <div className="space-y-1.5">
+                  <p className="text-xs text-white/35 pl-1">MPIN ({mpinDigits.length}/6)</p>
+                  <input type="password" inputMode="numeric" maxLength={6} value={mpinDigits}
+                    onChange={(e) => { setMpinDigits(e.target.value.replace(/\D/g, '')); setError(''); }}
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.4em] text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    aria-label="MPIN" disabled={loading} />
+                </div>
+                <button type="submit" disabled={loading || mpinDigits.length < 4}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-semibold text-sm transition-all hover:bg-primary-600 active:scale-95 disabled:opacity-60">
+                  {loading ? <><Spinner /> Signing in…</> : 'Sign In with MPIN'}
+                </button>
+              </form>
+            )}
+
+            <p className="mt-5 text-center text-sm text-white/30">
+              Don&apos;t have an account?{' '}
+              <Link href="/auth/register" className="text-primary hover:text-primary-400 font-medium transition-colors">Create one</Link>
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
+}
+
+function Spinner() {
+  return <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>;
 }
