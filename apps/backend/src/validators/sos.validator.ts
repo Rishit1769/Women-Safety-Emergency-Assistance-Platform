@@ -46,13 +46,13 @@ export const alertHistoryQuerySchema = z.object({
   page: z
     .string()
     .optional()
-    .transform((v) => (v ? parseInt(v, 10) : 1))
-    .pipe(z.number().int().min(1)),
+    .default('1')
+    .transform((v) => parseInt(v, 10)),
   limit: z
     .string()
     .optional()
-    .transform((v) => (v ? parseInt(v, 10) : 20))
-    .pipe(z.number().int().min(1).max(100)),
+    .default('20')
+    .transform((v) => parseInt(v, 10)),
 });
 
 export type CreateSosInput = z.infer<typeof createSosSchema>;

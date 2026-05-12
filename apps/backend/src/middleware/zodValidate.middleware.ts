@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ZodSchema, ZodError } from 'zod';
+import { ZodSchema, ZodError, ZodType, ZodTypeDef } from 'zod';
 import { sendValidationError } from '../utils/response';
 
 /**
@@ -26,8 +26,11 @@ export function validateBody<T>(schema: ZodSchema<T>) {
 
 /**
  * Validates req.query against a Zod schema.
+ * Accepts transform schemas (input and output types may differ).
  */
-export function validateQuery<T>(schema: ZodSchema<T>) {
+export function validateQuery<TOut, TDef extends ZodTypeDef = ZodTypeDef, TIn = TOut>(
+  schema: ZodType<TOut, TDef, TIn>
+) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.query);
     if (!result.success) {

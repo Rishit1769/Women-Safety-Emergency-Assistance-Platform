@@ -47,6 +47,8 @@ export async function createSosAlert(input: CreateSosInput) {
       status: AlertStatus.pending,
       severity: IncidentSeverity.high,
       description,
+      triggerLatitude: latitude,
+      triggerLongitude: longitude,
       triggerAddress: address,
     },
   });
