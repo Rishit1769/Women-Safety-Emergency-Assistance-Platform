@@ -73,4 +73,25 @@
   .badge-safe      { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-safe/10 text-safe-dark; }
   .badge-warning   { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-yellow-800; }
   .badge-emergency { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emergency/10 text-emergency; }
+
+  /* ─── Form inputs ────────────────────────────────────────── */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-border bg-white text-navy text-sm
+           placeholder:text-muted
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
+           transition-colors duration-200;
+  }
+
+  /* ─── Typography helpers ──────────────────────────────────── */
+  .text-hero    { @apply text-3xl font-bold; }
+  .text-body    { @apply text-base; }
+  .text-caption { @apply text-sm; }
+  .text-small   { @apply text-xs; }
+  .text-navy    { @apply text-[#0B1026]; }
+  .text-primary { @apply text-[#FF6B2D]; }
+  .text-muted   { @apply text-[#7E8794]; }
+  .text-emergency { @apply text-[#D72638]; }
+
+  /* ─── Background helpers ─────────────────────────────────── */
+  .bg-light     { @apply bg-[#F7F8FC]; }
 }
