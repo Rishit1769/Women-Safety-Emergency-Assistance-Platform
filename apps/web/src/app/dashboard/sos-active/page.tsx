@@ -17,11 +17,18 @@ export default function SosActivePage() {
   }, [isAuthenticated, router]);
 
   // Poll active alert every 5 seconds
-  const { data: alertData, isLoading } = useQuery({
+  const { data: singleAlert } = useQuery({
     queryKey: ['sos-alert', alertId],
-    queryFn: () => (alertId ? sosApi.getById(alertId) : sosApi.getActive()),
+    queryFn: () => sosApi.getById(alertId!),
     refetchInterval: 5000,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !!alertId,
+  });
+
+  const { data: activeAlerts } = useQuery({
+    queryKey: ['sos-active'],
+    queryFn: () => sosApi.getActive(),
+    refetchInterval: 5000,
+    enabled: isAuthenticated && !alertId,
   });
 
   const cancelMutation = useMutation({
@@ -30,16 +37,13 @@ export default function SosActivePage() {
   });
 
   const alert =
-    alertId && alertData && 'id' in alertData
-      ? alertData
-      : Array.isArray(alertData?.data)
-        ? alertData.data[0]
-        : null;
+    (singleAlert as { data?: { id?: string } } | undefined)?.data ??
+    ((activeAlerts as { data?: { data?: unknown[] } } | undefined)?.data?.data?.[0] ?? null);
 
   const handleCancel = useCallback(() => {
-    if (!alert) { router.push('/dashboard'); return; }
+    if (!alert || typeof alert !== 'object' || !('id' in alert)) { router.push('/dashboard'); return; }
     if (window.confirm('Cancel your SOS alert? Only do this if you are safe.')) {
-      cancelMutation.mutate(alert.id as string);
+      cancelMutation.mutate((alert as { id: string }).id);
     }
   }, [alert, cancelMutation, router]);
 
@@ -76,7 +80,7 @@ export default function SosActivePage() {
       <div className="w-full max-w-sm space-y-3 mb-8">
         {[
           { label: 'Emergency Contacts', status: 'Notified', icon: '📱' },
-          { label: 'Nearby Volunteers', status: isLoading ? 'Searching…' : 'Alert sent', icon: '🦺' },
+          { label: 'Nearby Volunteers', status: 'Alert sent', icon: '🦺' },
           { label: 'Alert Recorded', status: 'Logged securely', icon: '🔒' },
         ].map((item) => (
           <div
