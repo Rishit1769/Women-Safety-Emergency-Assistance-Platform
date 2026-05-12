@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../middleware/error.middleware';
 import { emitPoliceAccepted, emitAlertStatusChanged } from '../sockets';
 
 export interface CreatePoliceAccountInput {
@@ -41,7 +41,7 @@ export async function getPoliceProfile(userId: string) {
   const account = await prisma.policeAccount.findUnique({
     where: { userId },
     include: {
-      user: { select: { id: true, fullName: true, email: true, phone: true, profilePhoto: true } },
+      user: { select: { id: true, fullName: true, email: true, phone: true } },
       station: true,
     },
   });
@@ -74,10 +74,10 @@ export async function assignAlert(policeUserId: string, alertId: string) {
 
   emitPoliceAccepted(alertId, {
     alertId,
-    officerName: policeUser?.fullName ?? 'Officer',
-    officerPhone: policeUser?.phone ?? '',
-    badgeNumber: account.badgeNumber,
     status: 'accepted',
+    updatedBy: policeUserId,
+    notes: `Officer ${policeUser?.fullName ?? 'Unknown'} (Badge: ${account.badgeNumber}) assigned`,
+    timestamp: new Date().toISOString(),
   });
 
   return updatedAlert;
@@ -99,7 +99,7 @@ export async function escalateAlert(policeUserId: string, alertId: string, reaso
     },
   });
 
-  emitAlertStatusChanged(alertId, { alertId, status: 'escalated', updatedAt: new Date().toISOString() });
+  emitAlertStatusChanged(alertId, { alertId, status: 'escalated', updatedBy: policeUserId, timestamp: new Date().toISOString() });
 
   return updatedAlert;
 }

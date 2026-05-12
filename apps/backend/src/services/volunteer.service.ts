@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../middleware/error.middleware';
 import { emitVolunteerAccepted } from '../sockets';
 
 export interface RegisterVolunteerInput {
@@ -46,7 +46,7 @@ export async function getVolunteerProfile(userId: string) {
   const volunteer = await prisma.volunteer.findUnique({
     where: { userId },
     include: {
-      user: { select: { id: true, fullName: true, email: true, phone: true, profilePhoto: true } },
+      user: { select: { id: true, fullName: true, email: true, phone: true } },
       availability: true,
     },
   });
@@ -102,10 +102,8 @@ export async function acceptAlert(volunteerId: string, alertId: string) {
   // Real-time notification to the victim
   emitVolunteerAccepted(alertId, {
     alertId,
+    volunteerId: volunteer.id,
     volunteerName: volunteer.user.fullName ?? 'Volunteer',
-    volunteerPhone: volunteer.user.phone ?? '',
-    eta: null,
-    status: 'accepted',
   });
 
   return updatedAlert;
