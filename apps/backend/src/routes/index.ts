@@ -7,6 +7,7 @@ import volunteerRoutes from './volunteer.routes';
 import policeRoutes from './police.routes';
 import aiRoutes from './ai.routes';
 import communityRoutes from './community.routes';
+import organizationRoutes from './organization.routes';
 
 const router = Router();
 
@@ -18,5 +19,7 @@ router.use('/volunteers', volunteerRoutes);
 router.use('/police', policeRoutes);
 router.use('/ai', aiRoutes);
 router.use('/community', communityRoutes);
+router.use('/organizations', organizationRoutes);
 
 export default router;
+
