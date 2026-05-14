@@ -951,14 +951,6 @@ model GuardianTrackingSession {
   @@map("guardian_tracking_sessions")
 }
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journey Journey? @relation(fields: [journeyId], references: [id])
-  alert   SosAlert? @relation(fields: [alertId], references: [id])
-
-  @@index([userId], name: "idx_transport_trips_user_id")
-  @@map("transport_trips")
-}
-
 // -----------------------------------------------------------------
 // RBAC � ORGANIZATIONS, WORKERS, AUDIT LOGS
 // -----------------------------------------------------------------
