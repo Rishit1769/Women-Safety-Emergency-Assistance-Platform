@@ -103,21 +103,21 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-[#0B1026] via-[#111827] to-[#0B1026] flex items-center justify-center px-4 py-12">
+    <main className="relative min-h-screen bg-gradient-to-br from-[#F7F8FC] via-[#EEF1F8] to-[#E6ECF7] dark:from-[#0B1026] dark:via-[#111827] dark:to-[#0B1026] flex items-center justify-center px-4 py-12">
       <div className="fixed top-4 right-4 z-50"><ThemeToggle /></div>
       <div className="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 right-0 w-72 h-72 rounded-full bg-[#7B61FF]/10 blur-3xl" />
       <div className="relative z-10 w-full max-w-md">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-navy/45 hover:text-navy/70 dark:text-white/40 dark:hover:text-white/70 text-sm mb-6 transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
           Back
         </Link>
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-8 animate-slide-up">
+        <div className="rounded-2xl border border-navy/10 bg-white/90 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl shadow-2xl p-8 animate-slide-up">
           <div className="mb-7">
-            <h1 className="text-2xl font-bold text-white">Create Account</h1>
-            <p className="mt-1 text-sm text-white/40">
+            <h1 className="text-2xl font-bold text-navy dark:text-white">Create Account</h1>
+            <p className="mt-1 text-sm text-navy/60 dark:text-white/40">
               Already have an account?{' '}
               <Link href="/auth/login" className="text-primary hover:text-primary-400 font-medium transition-colors">Sign in</Link>
             </p>
@@ -162,7 +162,7 @@ export default function RegisterPage() {
               ) : 'Create Account'}
             </button>
           </form>
-          <p className="mt-5 text-center text-xs text-white/25 leading-relaxed">Your Aadhaar number is encrypted at rest and never shared with third parties.</p>
+          <p className="mt-5 text-center text-xs text-navy/45 dark:text-white/25 leading-relaxed">Your Aadhaar number is encrypted at rest and never shared with third parties.</p>
         </div>
       </div>
     </main>

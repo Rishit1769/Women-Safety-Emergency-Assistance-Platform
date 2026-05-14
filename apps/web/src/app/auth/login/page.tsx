@@ -113,7 +113,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-[#0B1026] via-[#111827] to-[#0B1026] flex items-center justify-center px-4">
+    <main className="relative min-h-screen bg-gradient-to-br from-[#F7F8FC] via-[#EEF1F8] to-[#E6ECF7] dark:from-[#0B1026] dark:via-[#111827] dark:to-[#0B1026] flex items-center justify-center px-4">
       <div className="fixed top-4 right-4 z-50"><ThemeToggle /></div>
       <div className="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 right-0 w-72 h-72 rounded-full bg-[#7B61FF]/10 blur-3xl" />
@@ -121,17 +121,17 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-sm">
         <div className="text-center mb-7">
           <Link href="/">
-            <h1 className="text-3xl font-bold text-white">Raksha<span className="text-primary">AI</span></h1>
+            <h1 className="text-3xl font-bold text-navy dark:text-white">Raksha<span className="text-primary">AI</span></h1>
           </Link>
-          <p className="mt-1 text-sm text-white/35">Sign in to your account</p>
+          <p className="mt-1 text-sm text-navy/55 dark:text-white/35">Sign in to your account</p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl animate-slide-up">
-          <div className="flex border-b border-white/10">
+        <div className="rounded-2xl border border-navy/10 bg-white/90 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl shadow-2xl animate-slide-up">
+          <div className="flex border-b border-navy/10 dark:border-white/10">
             {(['email', 'mpin'] as LoginMode[]).map((m) => (
               <button key={m} onClick={() => { setMode(m); setError(''); setStep('credentials'); }}
                 className={['flex-1 py-3.5 text-sm font-medium transition-colors first:rounded-tl-2xl last:rounded-tr-2xl',
-                  mode === m ? 'text-white border-b-2 border-primary -mb-px' : 'text-white/35 hover:text-white/60'].join(' ')}>
+                  mode === m ? 'text-navy dark:text-white border-b-2 border-primary -mb-px' : 'text-navy/45 hover:text-navy/70 dark:text-white/35 dark:hover:text-white/60'].join(' ')}>
                 {m === 'email' ? 'Email + Password' : 'MPIN Login'}
               </button>
             ))}
@@ -176,20 +176,20 @@ export default function LoginPage() {
 
             {mode === 'email' && step === 'otp' && (
               <form onSubmit={handleOtpVerify} noValidate className="space-y-4">
-                <p className="text-sm text-white/40 text-center">
-                  Code sent to <span className="text-white/60 font-medium">{maskedEmail}</span>
+                <p className="text-sm text-navy/55 dark:text-white/40 text-center">
+                  Code sent to <span className="text-navy/80 dark:text-white/60 font-medium">{maskedEmail}</span>
                 </p>
                 <input type="text" inputMode="numeric" maxLength={6} value={otp}
                   onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '')); setError(''); }}
-                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full rounded-xl border border-navy/15 bg-white dark:border-white/15 dark:bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.5em] text-navy dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   disabled={loading} aria-label="OTP code" />
                 <button type="submit" disabled={loading || otp.length < 6}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-semibold text-sm transition-all hover:bg-primary-600 active:scale-95 disabled:opacity-60">
                   {loading ? <><Spinner /> Verifying…</> : 'Verify & Sign In'}
                 </button>
-                <div className="flex justify-between text-xs text-white/30">
-                  <button type="button" onClick={handleResendOtp} disabled={loading} className="hover:text-white/60 transition-colors">Resend OTP</button>
-                  <button type="button" onClick={() => { setStep('credentials'); setOtp(''); setError(''); }} className="hover:text-white/60 transition-colors">← Change email</button>
+                <div className="flex justify-between text-xs text-navy/45 dark:text-white/30">
+                  <button type="button" onClick={handleResendOtp} disabled={loading} className="hover:text-navy/75 dark:hover:text-white/60 transition-colors">Resend OTP</button>
+                  <button type="button" onClick={() => { setStep('credentials'); setOtp(''); setError(''); }} className="hover:text-navy/75 dark:hover:text-white/60 transition-colors">← Change email</button>
                 </div>
               </form>
             )}
@@ -215,10 +215,10 @@ export default function LoginPage() {
                   }
                 />
                 <div className="space-y-1.5">
-                  <p className="text-xs text-white/35 pl-1">MPIN ({mpinDigits.length}/6)</p>
+                  <p className="text-xs text-navy/55 dark:text-white/35 pl-1">MPIN ({mpinDigits.length}/6)</p>
                   <input type="password" inputMode="numeric" maxLength={6} value={mpinDigits}
                     onChange={(e) => { setMpinDigits(e.target.value.replace(/\D/g, '')); setError(''); }}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.4em] text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-xl border border-navy/15 bg-white dark:border-white/15 dark:bg-white/5 px-4 py-3.5 text-center text-2xl font-mono tracking-[0.4em] text-navy dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     aria-label="MPIN" disabled={loading} />
                 </div>
                 <button type="submit" disabled={loading || mpinDigits.length < 4}
@@ -228,7 +228,7 @@ export default function LoginPage() {
               </form>
             )}
 
-            <p className="mt-5 text-center text-sm text-white/30">
+            <p className="mt-5 text-center text-sm text-navy/45 dark:text-white/30">
               Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-primary hover:text-primary-400 font-medium transition-colors">Create one</Link>
             </p>
