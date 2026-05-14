@@ -63,8 +63,9 @@ export default function RegisterPage() {
     setLoading(true);
     setErrors({});
     try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/+$/, '');
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api'}/auth/register`,
+        `${apiBase}/auth/register`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -77,13 +78,25 @@ export default function RegisterPage() {
           }),
         }
       );
-      const data = (await res.json()) as { success: boolean; message: string };
-      if (!res.ok || !data.success) { setErrors({ form: data.message || 'Registration failed.' }); return; }
+      const contentType = res.headers.get('content-type') ?? '';
+      let data: { success: boolean; message: string } = { success: false, message: '' };
+
+      if (contentType.includes('application/json')) {
+        data = (await res.json()) as { success: boolean; message: string };
+      }
+
+      if (!res.ok || !data.success) {
+        const fallbackMessage = res.ok
+          ? 'Registration failed.'
+          : `Unable to reach auth service (HTTP ${res.status}). Please ensure backend is running on port 5000.`;
+        setErrors({ form: data.message || fallbackMessage });
+        return;
+      }
       sessionStorage.setItem('rakshaai_pending_email', form.email.trim().toLowerCase());
       sessionStorage.setItem('rakshaai_otp_purpose', 'register');
       router.push('/auth/verify-otp');
     } catch {
-      setErrors({ form: 'Network error. Check your connection.' });
+      setErrors({ form: 'Cannot connect to backend. Start backend server and try again.' });
     } finally {
       setLoading(false);
     }
